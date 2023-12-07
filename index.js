@@ -6,7 +6,7 @@ var execPath;
 chromium.setHeadlessMode = true;
 chromium.setGraphicsMode = false;
 
-const ONLINE = ["BARCODE_LOOKUP", "GO_UPC", "AMAZON"];
+const ONLINE = ["BARCODE_LOOKUP", "GO_UPC"];
 
 const WEBSITES_TO_SCRAPE = {
   BARCODE_LOOKUP: "BARCODE_LOOKUP",
@@ -14,15 +14,22 @@ const WEBSITES_TO_SCRAPE = {
   AMAZON: "AMAZON"
 }
 
-let browser = null;
+function parse(string){
+  // Step 1. Replace multiple whitespaces with single space.
+  // Step 2. Replace newline characters with single space.
+  // Step 3: Clear whitespaces from the beggining
+  // Step 4: Clear whitespaces from the end
+  let s = string.replace(/\s+/g, ' ').replace(/\n+/g, " ").replace(/^[ ]+/g, "").replace(/[ ]+$/g, "")
+  return s;
+}
 
 async function amazonScraper(ean) {
-  // const browser = await puppeteer.launch({
-  //   args: chromium.args,
-  //   executablePath: await chromium.executablePath(),
-  //   headless: chromium.headless,
-  //   ignoreHTTPSErrors: true,
-  // });
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+    ignoreHTTPSErrors: true,
+  });
   const page = await browser.newPage();
   const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36";
   await page.setUserAgent(ua)
@@ -48,26 +55,26 @@ async function amazonScraper(ean) {
         "image_uri": imageURI,
       }
     } catch {
-      return {
-        statusCode: 400,
-        body: JSON.stringify({ message: "something went wrong" })
-      };
+      // return {
+      //   statusCode: 400,
+      //   body: JSON.stringify({ message: "something went wrong" })
+      // };
     }
   } catch {
-    return {
-      statusCode: 404,
-      body: JSON.stringify({ message: "ean not found" })
-    };
+    // return {
+    //   statusCode: 404,
+    //   body: JSON.stringify({ message: "ean not found" })
+    // };
   }
 }
 
 async function goUpcScraper(ean) {
-  // const browser = await puppeteer.launch({
-  //   args: chromium.args,
-  //   executablePath: await chromium.executablePath(),
-  //   headless: chromium.headless,
-  //   ignoreHTTPSErrors: true,
-  // });
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+    ignoreHTTPSErrors: true,
+  });
   const page = await browser.newPage();
   const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36";
   await page.setUserAgent(ua)
@@ -87,15 +94,21 @@ async function goUpcScraper(ean) {
       "image_uri": imageURI,
     }
   } catch {
-    return {
-      statusCode: 404,
-      body: JSON.stringify({ message: "ean not found" })
-    };
+    console.log("Not found")
+    // return {
+    //   statusCode: 404,
+    //   body: JSON.stringify({ message: "ean not found" })
+    // };
   }
 }
 
 async function barcodeLoopkupScraper(ean) {
-  
+  const browser = await puppeteer.launch({
+    args: chromium.args,
+    executablePath: await chromium.executablePath(),
+    headless: chromium.headless,
+    ignoreHTTPSErrors: true,
+  });
   const page = await browser.newPage();
   const ua = "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/66.0.3359.181 Safari/537.36";
   await page.setUserAgent(ua)
@@ -115,10 +128,10 @@ async function barcodeLoopkupScraper(ean) {
       "image_uri": imageURI,
     }
   } catch {
-    return {
-      statusCode: 404,
-      body: JSON.stringify({ message: "ean not found" })
-    };
+    // return {
+    //   statusCode: 404,
+    //   body: JSON.stringify({ message: "ean not found" })
+    // };
   }
 }
 
@@ -149,39 +162,44 @@ async function handler(event) {
       body: JSON.stringify({ message: "Invalid payload" })
     };
   }
-  
-  browser = await puppeteer.launch({
-    args: chromium.args,
-    executablePath: await chromium.executablePath(),
-    headless: chromium.headless,
-    ignoreHTTPSErrors: true,
-  });
 
   if (isMainThread) {
     let sharedResponse = {}
 
-    // Terminate all worker threads
-    const handleThreadCompletion = (result) => {
-      Object.assign(sharedResponse, result)
+    const handleThreadCompletion = (result, type) => {
+      let parsedResult = {}
+      for (const key in result){
+        if (result.hasOwnProperty(key)){
+          parsedResult[key] = parse(result[key])
+        }
+      }
+
+      // Iterate and pick data from current thread.
+      for (const key in parsedResult){
+        if (sharedResponse.hasOwnProperty(key)){
+          if (sharedResponse[key].length < parsedResult[key].length) sharedResponse[key] = parsedResult[key];
+        }
+        if (!sharedResponse.hasOwnProperty(key) && parsedResult.hasOwnProperty(key)){
+          sharedResponse[key] = parsedResult[key];
+        }
+      }
     };
 
     ONLINE.forEach((type) => {
       const worker = new Worker(__filename, { workerData: type });
       workers.push(worker);
       worker.once('message', (result) => {
-        handleThreadCompletion(result);
+        handleThreadCompletion(result, type);
       })
     });
 
-    console.log(sharedResponse)
   }
   else {
     const type = workerData;
     let result = await scraper(event.ean, type);
-    parentPort.postMessage(result);
+    if (result) parentPort.postMessage(result);
   }
 };
-
 
 const x = async () => {
   await handler({ ean: "8904063214386" })

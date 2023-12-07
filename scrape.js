@@ -128,7 +128,6 @@ async function barcodeLoopkupScraper(ean, index) {
 
 
 async function scraper(ean, type, index) {
-  console.log(index)
   switch (type){
     case WEBSITES_TO_SCRAPE.BARCODE_LOOKUP:
       return barcodeLoopkupScraper(ean, index);
@@ -156,7 +155,7 @@ const x = async () => {
   for (let i = 0; i < 100; i++) {
     console.log(`Request No ${i + 1}\n`)
     try {
-      await handler({ ean: "8904063214386", type: WEBSITES_TO_SCRAPE.BARCODE_LOOKUP}, i)
+      await handler({ ean: "8904063214386", type: WEBSITES_TO_SCRAPE.GO_UPC}, i)
     } catch {} 
   }
 }
