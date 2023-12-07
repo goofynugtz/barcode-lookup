@@ -55,6 +55,7 @@ async function amazonScraper(ean) {
         "image_uri": imageURI,
       }
     } catch {
+      console.log("Not found")
       // return {
       //   statusCode: 400,
       //   body: JSON.stringify({ message: "something went wrong" })
@@ -128,6 +129,7 @@ async function barcodeLoopkupScraper(ean) {
       "image_uri": imageURI,
     }
   } catch {
+    console.log("Not found")
     // return {
     //   statusCode: 404,
     //   body: JSON.stringify({ message: "ean not found" })
@@ -142,7 +144,6 @@ async function getPath() {
 }
 
 async function scraper(ean, type) {
-  console.log("hehl")
   switch (type) {
     case WEBSITES_TO_SCRAPE.BARCODE_LOOKUP:
       return barcodeLoopkupScraper(ean);
@@ -174,7 +175,7 @@ async function handler(event) {
         }
       }
 
-      // Iterate and pick data from current thread.
+      // Iterate and nit-pick data from current thread.
       for (const key in parsedResult){
         if (sharedResponse.hasOwnProperty(key)){
           if (sharedResponse[key].length < parsedResult[key].length) sharedResponse[key] = parsedResult[key];
@@ -190,6 +191,7 @@ async function handler(event) {
       workers.push(worker);
       worker.once('message', (result) => {
         handleThreadCompletion(result, type);
+        console.log(sharedResponse)
       })
     });
 
