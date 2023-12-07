@@ -156,7 +156,7 @@ const x = async () => {
   for (let i = 0; i < 100; i++) {
     console.log(`Request No ${i + 1}\n`)
     try {
-      await handler({ ean: "8904063214386", type: WEBSITES_TO_SCRAPE.AMAZON}, i)
+      await handler({ ean: "8904063214386", type: WEBSITES_TO_SCRAPE.BARCODE_LOOKUP}, i)
     } catch {} 
   }
 }
